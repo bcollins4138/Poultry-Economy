@@ -1,0 +1,629 @@
+extensions [csv]
+globals [
+
+  min-price
+  population-sellers
+  sales-per-tick
+  starting-asking-price
+  amount-high
+  amount-low
+  chicks
+  fuel-electricity
+  feed
+  medicine
+  transportation
+  water
+  remaining-costs
+
+
+  inputdata ;referring to csv files
+
+  ; these variables track data as the model runs
+  avg-per-buyer
+  avg-per-sellerA
+  avg-per-sellerB
+  avg-per-sellerC
+  total-sales
+  remaining-supply
+  starting-money-actual
+  total-bought
+
+]
+
+breed [ sellersA sellerA ]
+breed [ sellersB sellerB ]
+breed [ sellersC sellerC ]
+breed [ buyers buyer ]
+breed [ pops pop ]
+
+turtles-own [
+  money        ; keeps track of the amount of money the turtle has
+  next-xcor    ; the x-coordinate of the next position
+  next-ycor    ; the y-coordinate of the next position
+  percent
+]
+
+sellersA-own [
+  items-for-saleA ; the quantity that the seller has to sell
+  asking-priceA
+  asking-price
+  starting-supplyA
+  behavior-after-sale ; the behavior of seller after a sale
+  behavior-no-sale ; the behavior of the seller after a no sale
+  sold ; the quantity that the seller has sold
+
+  want-to-buy ; added as a test
+  attributes-ownedA
+]
+
+sellersB-own [
+  items-for-saleB ; the quantity that the seller has to sell
+  items-for-saleA
+  asking-price
+  asking-priceB
+  starting-supplyB
+  behavior-after-sale ; the behavior of seller after a sale
+  behavior-after-saleB
+  behavior-no-saleB ; the behavior of the seller after a no sale
+  behavior-no-sale
+  sold ; the quantity that the seller has sold
+  want-to-buy ; added as a test
+  attributes-ownedB
+]
+
+sellersC-own [
+  items-for-saleC ; the quantity that the seller has to sell
+  items-for-saleA
+  items-for-saleB
+  asking-price
+  asking-priceB
+  asking-priceC
+  starting-supplyC
+  behavior-after-sale ; the behavior of seller after a sale
+  behavior-after-saleC
+  behavior-no-saleB ; the behavior of the seller after a no sale
+  behavior-no-sale
+  sold ; the quantity that the seller has sold
+  want-to-buy ; added as a test
+  attributes-ownedC
+]
+
+buyers-own [
+  want-to-buy ; the quantity the buyer wants to buy
+  willing-to-pay
+  starting-demand
+  behavior-after-purchase
+  behavior-no-purchase ; the behavior of the buyer after not buying
+  boughtA ; the quantity that the buyer has bought from A
+  boughtB ; total bought from seller B
+  boughtC
+  medicine-costs
+  items-for-saleA ;added as test
+  items-for-saleB
+  items-for-saleC
+  starting-priceA
+  starting-willing-to-pay
+
+  variable-list var1 var2 var3 ;for get-data command
+]
+
+to setup
+  clear-all
+
+  directories-and-files
+
+  ; set the global variables
+  set min-price 0.01
+  ;set population-buyers 3
+  set population-sellers 1
+  set total-sales 0
+  set fuel-electricity 1
+  set feed .21
+  set water 1
+  set medicine .5
+  set transportation 1
+  set chicks 1.08
+  set remaining-costs (6.79 - (chicks + feed))
+  set starting-asking-price (chicks + feed + remaining-costs) * 2
+  ;set starting-willing-to-pay random 6                                                    ;starting willing to pay for buyer!
+  set amount-high 10
+  set amount-low 20
+  ;set starting-priceA-global 5
+  ;set starting-priceB-global 5
+ ; set changing-priceA-global asking-priceA
+
+  create-ordered-sellersA population-sellers [
+    forward 6
+    set color blue
+    set shape "person"
+    setxy -2 2
+    set money 0
+
+    set items-for-saleA 1000
+    set starting-supplyA items-for-saleA
+    set asking-priceA starting-priceA-global
+    ;starting asking price for A!!
+    set attributes-ownedA attributes-sellerA
+
+    ;set attributes-sellerA "1"
+    let mix-behavior ifelse-value seller-behaviorA = "mix of all" [random 3] [-1]
+    ifelse seller-behaviorA = "normal" or mix-behavior = 0 [
+      set behavior-after-sale [         -> change-priceA 0 ] ;prices changed from 2 and -2 respectively
+      set behavior-no-sale    [ hide? -> if (not hide?) [ change-priceA 0] ]
+    ] [
+      ifelse seller-behaviorA = "desperate" or mix-behavior = 1 [
+        set behavior-after-sale [         -> change-priceA 0.7 ]
+        set behavior-no-sale    [ hide? -> if (not hide?) [ change-priceA -5.0 ] ]
+      ] [
+        ; "random" or mix-behavior = 2
+        set behavior-after-sale [     -> change-priceA (random 11 - 5)]
+        set behavior-no-sale    [     -> change-priceA (random 11 - 5)]
+    ] ]
+  ]
+
+  create-ordered-sellersB population-sellers [
+    forward 0
+    setxy 0 2
+    set color green
+    set shape "person"
+    set money 0
+
+    set items-for-saleA 1000
+    set items-for-saleB 1000
+    set starting-supplyB items-for-saleB
+    set asking-priceB starting-priceB-global
+    set attributes-ownedB attributes-sellerB
+
+    let mix-behavior ifelse-value seller-behaviorB = "mix of all" [random 3] [-1]
+    ifelse seller-behaviorB = "normal" or mix-behavior = 0 [
+      set behavior-after-sale [         -> change-priceB 0 ] ;prices changed from 2 and -2 respectively
+      set behavior-no-sale    [ hide? -> if (not hide?) [ change-priceB 0 ] ]
+    ] [
+      ifelse seller-behaviorB = "desperate" or mix-behavior = 1 [
+        set behavior-after-sale [         -> change-priceB 0.7 ]
+        set behavior-no-sale    [ hide? -> if (not hide?) [ change-priceB -5.0 ] ]
+      ] [
+        ; "random" or mix-behavior = 2
+        set behavior-after-sale [     -> change-priceB (random 11 - 5)]
+        set behavior-no-sale    [     -> change-priceB (random 11 - 5)]
+    ] ]
+  ]
+
+  create-ordered-sellersC population-sellers [
+    forward 0
+    setxy 2 2
+    set color pink
+    set shape "person"
+    set money 0
+
+    set items-for-saleA 1000
+    set items-for-saleB 1000
+    set items-for-saleC 1000
+    set starting-supplyC items-for-saleC
+    set asking-priceC starting-priceC-global
+    set attributes-ownedC attributes-sellerC
+
+    let mix-behavior ifelse-value seller-behaviorC = "mix of all" [random 3] [-1]
+    ifelse seller-behaviorC = "normal" or mix-behavior = 0 [
+      set behavior-after-sale [         -> change-priceC 0 ] ;prices changed from 2 and -2 respectively
+      set behavior-no-sale    [ hide? -> if (not hide?) [ change-priceC 0 ] ]
+    ] [
+      ifelse seller-behaviorC = "desperate" or mix-behavior = 1 [
+        set behavior-after-sale [         -> change-priceC 0.7 ]
+        set behavior-no-sale    [ hide? -> if (not hide?) [ change-priceC -5.0 ] ]
+      ] [
+        ; "random" or mix-behavior = 2
+        set behavior-after-sale [     -> change-priceC (random 11 - 5)]
+        set behavior-no-sale    [     -> change-priceC (random 11 - 5)]
+    ] ]
+  ]
+
+  create-ordered-buyers population-buyers [
+    forward 10
+    facexy 0 0
+    set color 58
+    ;let new-color [color] of buyer 6 green
+    set shape "face happy"
+    set items-for-saleA 6;test
+    set want-to-buy var2
+    set starting-demand want-to-buy
+    set money get-starting-value starting-money
+    ;set starting-willing-to-pay 5 + random 6
+    set starting-willing-to-pay var1
+    set willing-to-pay get-starting-value starting-willing-to-pay * 2
+
+    ask buyers [
+      get-data]
+
+    file-close-all
+
+    let mix-behavior ifelse-value buyer-behavior = "mix of all" [random 3] [-1]
+    ifelse buyer-behavior = "normal" or mix-behavior = 0 [
+      set behavior-after-purchase [-> change-payment 0 ]
+      set behavior-no-purchase    [-> change-payment  0]
+    ] [
+      ifelse buyer-behavior = "desperate" or mix-behavior = 1 [
+        set behavior-after-purchase [-> change-payment -1 ]
+        set behavior-no-purchase    [-> change-payment  7 ]
+      ] [
+          ; "random"  or mix-behavior = 2
+          set behavior-after-purchase [-> change-payment (random 11 - 5)]
+          set behavior-no-purchase    [-> change-payment (random 11 - 5)]
+      ]
+    ]
+  ]
+
+  ; update our tracking variables
+  set avg-per-buyer (sum [starting-demand] of buyers) / (count buyers)
+  set avg-per-sellerA (sum [starting-supplyA] of sellersA) / (count sellersA)
+  set avg-per-sellerB (sum [starting-supplyB] of sellersB) / (count sellersB)
+  set avg-per-sellerC (sum [starting-supplyC] of sellersC) / (count sellersC)
+
+  set starting-money-actual sum [money] of buyers
+
+  reset-ticks
+end
+
+to-report get-starting-value [ starting-value ]
+  report precision (starting-value / 2) 2
+end
+
+to go
+  if (sum [items-for-saleA] of sellersA = 0 or (0 = count buyers with [money > 0 and want-to-buy > 0])) [ stop ]
+  if (sum [items-for-saleB] of sellersB = 0 or (0 = count buyers with [money > 0 and want-to-buy > 0])) [ stop ]
+  if (sum [items-for-saleC] of sellersC = 0 or (0 = count buyers with [money > 0 and want-to-buy > 0])) [ stop ]
+
+  clear-drawing
+  set sales-per-tick 0
+
+  set remaining-supply (sum [items-for-saleA] of sellersA + sum [items-for-saleB] of sellersB + sum [items-for-saleC] of sellersC)
+  set total-bought (sum [boughtA] of buyers + sum [boughtB] of buyers + sum [boughtC] of buyers)
+
+let sellersA-commerce sellersA
+  ask buyers [ do-commerce-withA sellersA-commerce ]
+  ask buyers [update-buyer-display]
+  ask sellersA [update-seller-displayA]
+  set total-sales (total-sales + sales-per-tick)
+
+ let sellersB-commerce sellersB
+  ask buyers [ do-commerce-withB sellersB-commerce ]
+  ask buyers [update-buyer-display]
+  ask sellersB [update-seller-displayB]
+  set total-sales (total-sales + sales-per-tick)
+
+ let sellersC-commerce sellersC
+  ask buyers [ do-commerce-withC sellersC-commerce ]
+  ask buyers [update-buyer-display]
+  ask sellersC [update-seller-displayC]
+  set total-sales (total-sales + sales-per-tick)
+
+
+  ; sanity check
+  if (any? buyers with [want-to-buy > 0 and willing-to-pay > money]) [ error "Cannot have turtles that want to pay more than their cash!" ]
+
+  tick
+end
+
+to update-buyer-display
+  if want-to-buy = 0 [
+    set color 2
+  ]
+  set size 1 + (boughtA + boughtB + boughtC / avg-per-buyer) * .01
+end
+
+to update-seller-displayA
+  if items-for-saleA = 0 [ set color 2 ]
+end
+
+to update-seller-displayB
+  if items-for-saleB = 0 [ set color 2 ]
+end
+
+to update-seller-displayC
+  if items-for-saleB = 0 [ set color 2 ]
+end
+
+to do-commerce-withA [sellersA-commerce]
+  let asking [asking-priceA] of sellerA 0
+  let attributes-desiredA [attributes-ownedA] of sellerA 0
+  let attributes-desiredB [attributes-ownedB] of sellerB 1
+  let attributes-desiredC [attributes-ownedC] of sellerC 2
+
+
+  (ifelse
+    ;attributes-desiredA = "1" [                      ;changed "1" to var3
+    attributes-sellerA = var3 [
+    create-link sellersA self pink
+
+    set sales-per-tick (sales-per-tick + 1)
+    set want-to-buy (want-to-buy - 1)
+    let price asking
+    set money precision (money - price) 2
+    set money ifelse-value money < min-price [0] [money]
+    set boughtA (boughtA + 1)
+    ask sellersA [
+      set items-for-saleA (items-for-saleA - 1)
+      set money precision (money + price) 2
+      set sold (sold + 1)
+      run behavior-after-sale
+      ]
+    run behavior-after-purchase
+      ]
+
+
+    attributes-sellerB = var3 or attributes-sellerC = var3 [                                        ;changed "1" to var3
+    create-link sellersA self blue
+    let hide? (sellers-ignore-full-buyers? and (want-to-buy = 0))
+    ask sellersA [ (run behavior-no-sale hide?) ]
+    run behavior-no-purchase
+  ]
+    items-for-saleA > 0 and want-to-buy > 0 and asking <= money and asking <= willing-to-pay and attributes-sellerA != var3 and asking < [asking-priceB] of sellerB 1 and asking < [asking-priceC] of sellerC 2[               ;changed "1" to var3
+  create-link sellersA self yellow                                                  ;if causing issues, remove the "and asking < [asking-priceB] of sellerB 1 and asking < [asking-priceC] of sellerC 2
+
+      set sales-per-tick (sales-per-tick + 1)
+    set want-to-buy (want-to-buy - 1)
+    let price asking
+    set money precision (money - price) 2
+    set money ifelse-value money < min-price [0] [money]
+    set boughtA (boughtA + 1)
+    ask sellersA [
+      set items-for-saleA (items-for-saleA - 1)
+      set money precision (money + price) 2
+      set sold (sold + 1)
+      run behavior-after-sale
+    ]
+   run behavior-after-purchase
+    ]
+         [
+    ; else no purchase was made
+    create-link sellersA self blue
+    let hide? (sellers-ignore-full-buyers? and (want-to-buy = 0))
+    ask sellersA [ (run behavior-no-sale hide?) ]
+    run behavior-no-purchase
+  ])
+end
+
+to do-commerce-withB [sellersB-commerce]
+  let asking [asking-priceB] of sellerB 1
+ let attributes-desiredB [attributes-ownedB] of sellerB 1
+  let attributes-desiredA [attributes-ownedA] of sellerA 0
+  let attributes-desiredC [attributes-ownedC] of sellerC 2
+
+
+(ifelse
+    ;attributes-desiredB = "1" [
+      attributes-sellerB = var3 [
+    create-link sellersB self pink
+
+    set sales-per-tick (sales-per-tick + 1)
+    set want-to-buy (want-to-buy - 1)
+    let price asking
+    set money precision (money - price) 2
+    set money ifelse-value money < min-price [0] [money]
+    set boughtB (boughtB + 1)
+    ask sellersB [
+      set items-for-saleB (items-for-saleB - 1)
+      set money precision (money + price) 2
+      set sold (sold + 1)
+      run behavior-after-sale
+      ]
+    run behavior-after-purchase
+  ]
+   attributes-sellerA = var3 or attributes-sellerC = var3 [
+    create-link sellersB self blue
+    let hide? (sellers-ignore-full-buyers? and (want-to-buy = 0))
+    ask sellersB [ (run behavior-no-sale hide?) ]
+    run behavior-no-purchase
+  ]
+
+ items-for-saleB > -1 and want-to-buy > 0 and asking <= money and asking <= willing-to-pay and attributes-sellerB != var3 and asking < [asking-priceA] of sellerA 0 and asking < [asking-priceC] of sellerC 2[
+  create-link sellersB self yellow
+
+      set sales-per-tick (sales-per-tick + 1)
+    set want-to-buy (want-to-buy - 1)
+    let price asking
+    set money precision (money - price) 2
+    set money ifelse-value money < min-price [0] [money]
+    set boughtB (boughtB + 1)
+    ask sellersB [
+      set items-for-saleB (items-for-saleB - 1)
+      set money precision (money + price) 2
+      set sold (sold + 1)
+      run behavior-after-sale
+    ]
+   run behavior-after-purchase
+    ]
+         [
+    ; else no purchase was made
+    create-link sellersB self blue
+    let hide? (sellers-ignore-full-buyers? and (want-to-buy = 0))
+    ask sellersB [ (run behavior-no-sale hide?) ]
+    run behavior-no-purchase
+  ])
+end
+
+to do-commerce-withC [sellersC-commerce]
+  let asking [asking-priceC] of sellerC 2
+  let attributes-desiredA [attributes-ownedA] of sellerA 0
+  let attributes-desiredB [attributes-ownedB] of sellerB 1
+  let attributes-desiredC [attributes-ownedC] of sellerC 2
+
+
+  (ifelse
+    ;attributes-desiredC = "1" [
+      attributes-sellerC = var3 [
+    create-link sellersC self pink
+
+    set sales-per-tick (sales-per-tick + 1)
+    set want-to-buy (want-to-buy - 1)
+    let price asking
+    set money precision (money - price) 2
+    set money ifelse-value money < min-price [0] [money]
+    set boughtC (boughtC + 1)
+    ask sellersC [
+      set items-for-saleC (items-for-saleC - 1)
+      set money precision (money + price) 2
+      set sold (sold + 1)
+      run behavior-after-sale
+      ]
+    run behavior-after-purchase
+  ]
+   attributes-sellerA = "1" or attributes-sellerB = var3 [
+    create-link sellersC self blue
+    let hide? (sellers-ignore-full-buyers? and (want-to-buy = 0))
+    ask sellersC [ (run behavior-no-sale hide?) ]
+    run behavior-no-purchase
+  ]
+
+ items-for-saleC > -1 and want-to-buy > 0 and asking <= money and asking <= willing-to-pay and attributes-sellerC != var3 and asking < [asking-priceB] of sellerB 1 and asking < [asking-priceA] of sellerA 0 [
+  create-link sellersC self yellow
+
+      set sales-per-tick (sales-per-tick + 1)
+    set want-to-buy (want-to-buy - 1)
+    let price asking
+    set money precision (money - price) 2
+    set money ifelse-value money < min-price [0] [money]
+    set boughtC (boughtC + 1)
+    ask sellersC [
+      set items-for-saleC (items-for-saleC - 1)
+      set money precision (money + price) 2
+      set sold (sold + 1)
+      run behavior-after-sale
+    ]
+   run behavior-after-purchase
+    ]
+         [
+    ; else no purchase was made
+    create-link sellersC self blue
+    let hide? (sellers-ignore-full-buyers? and (want-to-buy = 0))
+    ask sellersC [ (run behavior-no-sale hide?) ]
+    run behavior-no-purchase
+  ])
+end
+
+to create-link [ some-seller some-buyer some-color ]
+  ask some-seller [
+    let oc color
+    let x xcor
+    let y ycor
+    set color some-color
+    set pen-size 3
+    pen-down
+    move-to some-buyer
+    pen-up
+    setxy x y
+    set color oc
+  ]
+end
+
+to change-priceA [ change ]
+  let before asking-priceA
+  set percent 1 + (change / 100)
+  set asking-priceA check-for-min-price (precision (percent * asking-priceA) 2)
+  if before = asking-priceA [
+    if change < 0 and before != min-price [
+      set asking-price precision (asking-price - min-price) 2
+    ]
+    if change > 0 [
+      set asking-price precision (asking-price + min-price) 2
+    ]
+  ]
+end
+
+to change-priceB [ change ]
+  let before asking-priceB
+  set percent 1 + (change / 100)
+  set asking-priceB check-for-min-price (precision (percent * asking-priceB) 2)
+  if before = asking-priceB [
+    if change < 0 and before != min-price [
+      set asking-price precision (asking-price - min-price) 2
+    ]
+    if change > 0 [
+      set asking-price precision (asking-price + min-price) 2
+    ]
+  ]
+end
+
+to change-priceC [ change ]
+  let before asking-priceC
+  set percent 1 + (change / 100)
+  set asking-priceC check-for-min-price (precision (percent * asking-priceC) 2)
+  if before = asking-priceC [
+    if change < 0 and before != min-price [
+      set asking-price precision (asking-price - min-price) 2
+    ]
+    if change > 0 [
+      set asking-price precision (asking-price + min-price) 2
+    ]
+  ]
+end
+
+to change-payment [ change ]
+  let before willing-to-pay
+  set percent 1 + (change / 100)
+  set willing-to-pay check-for-min-price (precision (percent * willing-to-pay) 2)
+  if before = willing-to-pay [
+    if change < 0 and before != min-price [
+      set willing-to-pay precision (willing-to-pay - min-price) 2
+    ]
+    if change > 0 [
+      set willing-to-pay precision (willing-to-pay + min-price) 2
+    ]
+  ]
+  if willing-to-pay > money [ set willing-to-pay money ]
+end
+
+to-report seller-cash
+  report sum [money] of sellersA + sum [money] of sellersB + sum [money] of sellersC
+end
+
+to-report total-bought-per-buyer
+  report total-bought
+end
+
+to-report average-price
+  report (ifelse-value total-sales = 0 [ 0.00 ] [ precision (seller-cash / total-sales) 2 * 3])
+end
+
+to-report percent-money-taken
+  report 100 * sum [money] of sellersA / starting-money-actual + 100 * sum [money] of sellersB / starting-money-actual + 100 * sum [money] of sellersC / starting-money-actual
+end
+
+to-report remaining-products-to-be-sold
+  report remaining-supply
+end
+
+to-report remaining-starting-money
+  report starting-money - sum [money] of sellersA - sum [money] of sellersB
+end
+
+to-report percent-items-sold
+  report 100 * sum [sold] of sellersA / sum [items-for-saleA + sold] of sellersA
+end
+
+to-report percent-demand-satisfied
+  report 100 * sum [boughtA] of buyers / sum [want-to-buy + boughtA] of buyers
+end
+
+to-report check-for-min-price [ value ]
+  report precision ifelse-value value < min-price [min-price] [value] 2
+end
+
+to directories-and-files
+  set inputdata csv:from-file "C:/ABM Work/test.csv"
+end
+
+to get-data
+  set variable-list []
+
+  set variable-list item (who + 1) inputdata
+
+  set var1 item 0 variable-list
+  set var2 item 1 variable-list
+  set var3 item 2 variable-list
+
+end
+
+;Copywright Bryan Collins 2023
+;Ideas and coding segments pulled from NetLogo Bidding Market Model
+;Baker, J. and Wilensky, U. (2017). NetLogo Bidding Market model. http://ccl.northwestern.edu/netlogo/models/BiddingMarket. Center for Connected Learning and Computer-Based Modeling, Northwestern University, Evanston, IL.
